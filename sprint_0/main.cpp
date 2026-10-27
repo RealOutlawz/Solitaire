@@ -5,6 +5,7 @@
 #include <QRadioButton>
 #include <QVBoxLayout>
 #include <QWidget>
+#include <iostream>
 
 int main(int argc, char *argv[]) {
   QApplication app(argc, argv);
