@@ -1,15 +1,25 @@
-# CMake / generated binaries
+# CMake build directories and generated files
 /build/
+/build-*/
 /cmake-build-*/
 CMakeUserPresets.json
 CMakeFiles/
 CMakeCache.txt
 compile_commands.json
-.DS_Store
+
+# Compiled files
 *.dSYM/
 *.o
 *.a
 *.app/
+
+# IDE and operating system files
 .vscode/
 .idea/
-/build-sprint2/
+.DS_Store
+
+# Temporary project archives
+/*.zip
+
+# Local game recordings
+/solitaire-recording.txt

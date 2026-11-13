@@ -1,6 +1,7 @@
 #include "SolitaireGame.h"
 #include "BoardFactory.h"
 #include <gtest/gtest.h>
+#include <random>
 #include <stdexcept>
 #include <utility>
 
@@ -132,4 +133,87 @@ TEST(SolitaireGameTests, GameStartsInProgress) {
     SolitaireGame game;
     EXPECT_FALSE(game.isGameOver());
     EXPECT_EQ(game.getRating(), "In progress");
+}
+
+// Sprint 3, milestone 1: automated move selection (not yet full autoplay).
+TEST(SolitaireGameTests, EnumeratesFourLegalOpeningMovesOnEnglishBoard) {
+    SolitaireGame game;
+    const auto moves = game.validMoves();
+    ASSERT_EQ(moves.size(), 4u);
+    for (const Move& move : moves) {
+        EXPECT_TRUE(game.isValidMove(move.from, move.to));
+        EXPECT_EQ(move.to, (Position{3, 3}));
+    }
+}
+
+TEST(SolitaireGameTests, AutomatedMoveChoosesLegalJumpAndRemovesOnePeg) {
+    SolitaireGame game;
+    const Board before = game.board();
+    std::mt19937 rng(449);
+
+    ASSERT_TRUE(game.makeAutomatedMove(rng));
+    EXPECT_EQ(game.board().pegCount(), before.pegCount() - 1);
+
+    // The resulting board must match one legal move from the original state.
+    SolitaireGame baseline(before);
+    bool matchesLegalMove = false;
+    for (const Move& move : baseline.validMoves()) {
+        SolitaireGame candidate(before);
+        ASSERT_TRUE(candidate.makeMove(move.from, move.to));
+        bool sameBoard = true;
+        for (int row = 0; row < before.size(); ++row) {
+            for (int col = 0; col < before.size(); ++col) {
+                if (candidate.board().at({row, col}) != game.board().at({row, col})) {
+                    sameBoard = false;
+                }
+            }
+        }
+        if (sameBoard) matchesLegalMove = true;
+    }
+    EXPECT_TRUE(matchesLegalMove);
+}
+
+TEST(SolitaireGameTests, AutomatedMovesEventuallyReachGameOver) {
+    SolitaireGame game;
+    std::mt19937 rng(449);
+    const int initialPegs = game.board().pegCount();
+    int movesMade = 0;
+    while (!game.isGameOver() && movesMade < initialPegs) {
+        ASSERT_TRUE(game.makeAutomatedMove(rng));
+        ++movesMade;
+    }
+    EXPECT_GT(movesMade, 0);
+    EXPECT_TRUE(game.isGameOver());
+    EXPECT_LE(movesMade, initialPegs - 1);
+    EXPECT_FALSE(game.makeAutomatedMove(rng));
+}
+
+TEST(SolitaireGameTests, RandomizeKeepsBoardShapeAndPegCount) {
+    SolitaireGame game;
+    std::mt19937 rng(449);
+    const Board original = game.board();
+    ASSERT_TRUE(game.randomizeBoard(rng));
+    EXPECT_EQ(game.board().type(), original.type());
+    EXPECT_EQ(game.board().size(), original.size());
+    EXPECT_EQ(game.board().pegCount(), original.pegCount());
+    EXPECT_TRUE(game.hasValidMoves());
+    bool changed = false;
+    for (int row = 0; row < original.size(); ++row) {
+        for (int col = 0; col < original.size(); ++col) {
+            const Position p{row, col};
+            EXPECT_EQ(game.board().isPlayable(p), original.isPlayable(p));
+            if (game.board().at(p) != original.at(p)) changed = true;
+        }
+    }
+    EXPECT_TRUE(changed);
+}
+
+TEST(SolitaireGameTests, RandomizationRejectsGameOverAndLeavesBoardUnchanged) {
+    Board board = emptyEnglishBoard();
+    board.setPeg({3, 3}, true);
+    SolitaireGame game(board);
+    std::mt19937 rng(449);
+    EXPECT_FALSE(game.randomizeBoard(rng));
+    EXPECT_EQ(game.board().pegCount(), 1);
+    EXPECT_TRUE(game.board().hasPeg({3, 3}));
 }

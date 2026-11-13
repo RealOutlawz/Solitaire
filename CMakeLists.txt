@@ -23,6 +23,8 @@ add_library(solitaire_core
     src/Board.cpp
     src/BoardFactory.cpp
     src/SolitaireGame.cpp
+    src/GameMode.cpp
+    src/GameRecorder.cpp
 )
 target_include_directories(solitaire_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
@@ -36,6 +38,8 @@ target_link_libraries(solitaire_gui PRIVATE solitaire_core Qt6::Widgets)
 add_executable(solitaire_tests
     tests/BoardTests.cpp
     tests/SolitaireGameTests.cpp
+    tests/GameModeTests.cpp
+    tests/GameRecorderTests.cpp
 )
 target_link_libraries(solitaire_tests PRIVATE solitaire_core GTest::gtest_main)
 

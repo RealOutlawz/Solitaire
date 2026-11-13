@@ -1,8 +1,10 @@
 #include "SolitaireGame.h"
 #include "BoardFactory.h"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <random>
 #include <utility>
 
 namespace {
@@ -61,6 +63,29 @@ std::vector<Position> SolitaireGame::validDestinations(Position from) const {
     return destinations;
 }
 
+std::vector<Move> SolitaireGame::validMoves() const {
+    std::vector<Move> moves;
+    for (int row = 0; row < board_.size(); ++row) {
+        for (int col = 0; col < board_.size(); ++col) {
+            const Position from{row, col};
+            if (!board_.hasPeg(from)) continue;
+            for (const Position to : validDestinations(from)) {
+                moves.push_back({from, to});
+            }
+        }
+    }
+    return moves;
+}
+
+bool SolitaireGame::makeAutomatedMove(std::mt19937& rng) {
+    const auto moves = validMoves();
+    if (moves.empty()) return false;
+
+    std::uniform_int_distribution<std::size_t> pick(0, moves.size() - 1);
+    const Move chosen = moves[pick(rng)];
+    return makeMove(chosen.from, chosen.to);
+}
+
 bool SolitaireGame::hasValidMoves() const noexcept {
     for (int row = 0; row < board_.size(); ++row) {
         for (int col = 0; col < board_.size(); ++col) {
@@ -92,4 +117,41 @@ std::string SolitaireGame::getRating() const {
         case 3: return "Good";
         default: return "Average";
     }
+}
+
+void SolitaireGame::restoreBoard(Board board) {
+    board_ = std::move(board);
+}
+
+bool SolitaireGame::randomizeBoard(std::mt19937& rng) {
+    if (isGameOver()) return false;
+
+    std::vector<Position> positions;
+    for (int row = 0; row < board_.size(); ++row) {
+        for (int col = 0; col < board_.size(); ++col) {
+            if (board_.isPlayable({row, col})) positions.push_back({row, col});
+        }
+    }
+    const Board original = board_;
+    const int pegCount = original.pegCount();
+    if (pegCount == 0 || pegCount == static_cast<int>(positions.size())) return false;
+
+    // Move *locations*, not the number of pegs; avoid an immediate dead end.
+    for (int attempt = 0; attempt < 256; ++attempt) {
+        std::shuffle(positions.begin(), positions.end(), rng);
+        Board candidate = original;
+        for (const Position p : positions) candidate.setPeg(p, false);
+        for (int i = 0; i < pegCount; ++i) candidate.setPeg(positions[i], true);
+        SolitaireGame trial(candidate);
+        if (!trial.hasValidMoves()) continue;
+        bool changed = false;
+        for (int row = 0; row < candidate.size() && !changed; ++row) {
+            for (int col = 0; col < candidate.size(); ++col) {
+                const Position p{row, col};
+                if (candidate.at(p) != original.at(p)) { changed = true; break; }
+            }
+        }
+        if (changed) { board_ = std::move(candidate); return true; }
+    }
+    return false;
 }
